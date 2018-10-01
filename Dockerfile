@@ -17,7 +17,7 @@
 # Please file any issues or PRs at https://github.com/gocd/docker-gocd-agent
 ###############################################################################################
 
-FROM ubuntu:18.04
+FROM ubuntu:bionic
 MAINTAINER GoCD <go-cd-dev@googlegroups.com>
 
 LABEL gocd.version="18.9.0" \
@@ -47,10 +47,10 @@ RUN \
   groupadd -g ${GID} go && \ 
   useradd -u ${UID} -g go -d /home/go -m go && \
   apt-get update && \
-  apt-get install -y openjdk-8-jre-headless git subversion mercurial openssh-client bash unzip curl && \
+  apt-get install -y default-jre-headless git subversion mercurial openssh-client bash unzip curl && \
   apt-get autoclean && \
 # download the zip file
-  curl --fail --location --silent --show-error "https://download.gocd.org/experimental/binaries/18.9.0-7478/generic/go-agent-18.9.0-7478.zip" > /tmp/go-agent.zip && \
+  curl --fail --location --silent --show-error "https://download.gocd.org/binaries/18.9.0-7478/generic/go-agent-18.9.0-7478.zip" > /tmp/go-agent.zip && \
 # unzip the zip file into /go-agent, after stripping the first path prefix
   unzip /tmp/go-agent.zip -d / && \
   mv go-agent-18.9.0 /go-agent && \
