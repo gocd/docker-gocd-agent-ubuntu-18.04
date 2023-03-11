@@ -1,4 +1,4 @@
-# Copyright 2022 Thoughtworks, Inc.
+# Copyright 2023 Thoughtworks, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,23 +19,35 @@
 
 FROM curlimages/curl:latest as gocd-agent-unzip
 USER root
+ARG TARGETARCH
 ARG UID=1000
-RUN curl --fail --location --silent --show-error "https://download.gocd.org/binaries/22.3.0-15301/generic/go-agent-22.3.0-15301.zip" > /tmp/go-agent-22.3.0-15301.zip && \
-    unzip /tmp/go-agent-22.3.0-15301.zip -d / && \
-    mv /go-agent-22.3.0 /go-agent && \
-    chown -R ${UID}:0 /go-agent && \
-    chmod -R g=u /go-agent
+RUN curl --fail --location --silent --show-error "https://download.gocd.org/binaries/23.1.0-16079/generic/go-agent-23.1.0-16079.zip" > /tmp/go-agent-23.1.0-16079.zip && \
+    unzip -q /tmp/go-agent-23.1.0-16079.zip -d / && \
+    mkdir -p /go-agent/wrapper /go-agent/bin && \
+    mv -v /go-agent-23.1.0/LICENSE /go-agent/LICENSE && \
+    mv -v /go-agent-23.1.0/*.md /go-agent && \
+    mv -v /go-agent-23.1.0/bin/go-agent /go-agent/bin/go-agent && \
+    mv -v /go-agent-23.1.0/lib /go-agent/lib && \
+    mv -v /go-agent-23.1.0/logs /go-agent/logs && \
+    mv -v /go-agent-23.1.0/run /go-agent/run && \
+    mv -v /go-agent-23.1.0/wrapper-config /go-agent/wrapper-config && \
+    WRAPPERARCH=$(if [ $TARGETARCH == amd64 ]; then echo x86-64; elif [ $TARGETARCH == arm64 ]; then echo arm-64; else echo $TARGETARCH is unknown!; exit 1; fi) && \
+    mv -v /go-agent-23.1.0/wrapper/wrapper-linux-$WRAPPERARCH* /go-agent/wrapper/ && \
+    mv -v /go-agent-23.1.0/wrapper/libwrapper-linux-$WRAPPERARCH* /go-agent/wrapper/ && \
+    mv -v /go-agent-23.1.0/wrapper/wrapper.jar /go-agent/wrapper/ && \
+    chown -R ${UID}:0 /go-agent && chmod -R g=u /go-agent
 
 FROM docker.io/ubuntu:bionic
+ARG TARGETARCH
 
-LABEL gocd.version="22.3.0" \
+LABEL gocd.version="23.1.0" \
   description="GoCD agent based on docker.io/ubuntu:bionic" \
   maintainer="GoCD Team <go-cd-dev@googlegroups.com>" \
   url="https://www.gocd.org" \
-  gocd.full.version="22.3.0-15301" \
-  gocd.git.sha="9d23ed19a9ea46eaf7f18bd16671ae0569871f53"
+  gocd.full.version="23.1.0-16079" \
+  gocd.git.sha="21e78c998e1eb35d8d489c1d3e3e9813dc18233a"
 
-ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-amd64 /usr/local/sbin/tini
+ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-${TARGETARCH} /usr/local/sbin/tini
 
 # force encoding
 ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
@@ -52,13 +64,13 @@ RUN \
 # regardless of whatever dependencies get added
 # add user to root group for GoCD to work on openshift
   useradd -l -u ${UID} -g root -d /home/go -m go && \
-  apt-get update && \
-  apt-get upgrade -y && \
-  apt-get install -y git subversion mercurial openssh-client bash unzip curl ca-certificates locales procps sysvinit-utils coreutils && \
-  apt-get clean all && \
+  DEBIAN_FRONTEND=noninteractive apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y git subversion mercurial openssh-client bash unzip curl ca-certificates locales procps sysvinit-utils coreutils && \
+  DEBIAN_FRONTEND=noninteractive apt-get clean all && \
   rm -rf /var/lib/apt/lists/* && \
   echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen && /usr/sbin/locale-gen && \
-  curl --fail --location --silent --show-error 'https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.5%2B8/OpenJDK17U-jre_x64_linux_hotspot_17.0.5_8.tar.gz' --output /tmp/jre.tar.gz && \
+  curl --fail --location --silent --show-error "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.6%2B10/OpenJDK17U-jre_$(uname -m | sed -e s/86_//g)_linux_hotspot_17.0.6_10.tar.gz" --output /tmp/jre.tar.gz && \
   mkdir -p /gocd-jre && \
   tar -xf /tmp/jre.tar.gz -C /gocd-jre --strip 1 && \
   rm -rf /tmp/jre.tar.gz && \
